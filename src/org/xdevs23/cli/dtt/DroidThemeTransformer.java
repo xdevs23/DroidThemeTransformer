@@ -15,6 +15,7 @@ public class DroidThemeTransformer {
             "This is free software, and you are welcome to redistribute it",
             "under certain conditions; type `license' for details.",
             "",
+            "For usage and help, type 'help'.",
     };
 
     public DroidThemeTransformer() {
