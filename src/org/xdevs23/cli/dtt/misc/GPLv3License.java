@@ -3,7 +3,7 @@ package org.xdevs23.cli.dtt.misc;
 /**
  * I know I shouldn't really do this, but it is easier, and who cares?
  */
-public class GPLv3License {
+public final class GPLv3License {
 
     public static final String license =
             "" +
