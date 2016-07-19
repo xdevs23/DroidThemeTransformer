@@ -1,6 +1,11 @@
 package org.xdevs23.cli.dtt.handler;
 
 import org.xdevs23.cli.dtt.DroidThemeTransformer;
+import org.xdevs23.cli.dtt.misc.GPLv3License;
+
+import static org.xdevs23.cli.dtt.handler.cli.Commands.*;
+import static org.xdevs23.cli.dtt.DroidThemeTransformer.print;
+import static org.xdevs23.cli.dtt.DroidThemeTransformer.cout;
 
 public class CliHandler {
 
@@ -14,9 +19,20 @@ public class CliHandler {
         System.arraycopy(args, 1, argArgs, 0, args.length - 1);
 
         switch(mainArg) {
-            case "quit":
-            case "exit": return EXIT_CODE;
-            default: break;
+            case QUIT_CLI:
+            case EXIT_CLI: return EXIT_CODE;
+            case HELP:
+                break;
+            case TRANSFORM:
+                break;
+            case LICENSE:
+                cout(GPLv3License.license);
+                break;
+            case "":
+                cout("Please specify a command.");
+            default:
+                cout("Command '" + mainArg + "' not recognized.");
+                break;
         }
 
         return 0;
@@ -27,7 +43,7 @@ public class CliHandler {
      */
     public static void openInterface() {
         while(true) {
-            DroidThemeTransformer.print("DTT> ");
+            print("DTT> ");
             if(process(System.console().readLine().split(" ")) == EXIT_CODE) return;
         }
     }
