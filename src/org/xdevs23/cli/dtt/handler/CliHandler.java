@@ -3,6 +3,7 @@ package org.xdevs23.cli.dtt.handler;
 import org.xdevs23.cli.dtt.DroidThemeTransformer;
 import org.xdevs23.cli.dtt.misc.GPLv3License;
 import org.xdevs23.cli.dtt.misc.HelpText;
+import org.xdevs23.cli.dtt.transformer.ThemeTransformer;
 
 import static org.xdevs23.cli.dtt.handler.cli.Commands.*;
 import static org.xdevs23.cli.dtt.DroidThemeTransformer.print;
@@ -26,6 +27,7 @@ public class CliHandler {
                 cout(HelpText.helpText);
                 break;
             case TRANSFORM:
+                ThemeTransformer.startNewTransform(cmdArgs);
                 break;
             case LICENSE:
                 cout(GPLv3License.license);
