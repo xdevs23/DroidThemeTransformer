@@ -32,6 +32,10 @@ public class DroidThemeTransformer {
             System.out.print(s);
     }
 
+    public static String readLine() {
+        return System.console().readLine();
+    }
+
     public void run(String[] args) throws IOException {
         cout(welcomeMessage);
         CliHandler.openInterface();
