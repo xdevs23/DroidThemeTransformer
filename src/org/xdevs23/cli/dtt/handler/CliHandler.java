@@ -47,7 +47,13 @@ public class CliHandler {
     public static void openInterface() {
         while(true) {
             print("DTT> ");
-            if(process(System.console().readLine().split(" ")) == EXIT_CODE) return;
+            if(process(System.console().readLine()
+                    .trim() // Remove whitespaces before and after the whole line
+                    // Ensure every argument is separated only by one space
+                    .replaceAll("(([ ])(([ ])+))", " ")
+                    .split(" ") // Split the arguments into an array
+                ) == EXIT_CODE) // Exit the appliation if EXIT_CODE is returned
+                return;
         }
     }
 
