@@ -32,6 +32,7 @@ public class CliHandler {
                 break;
             case "":
                 cout("Please specify a command.");
+                break;
             default:
                 cout("Command '" + mainArg + "' not recognized.");
                 break;
