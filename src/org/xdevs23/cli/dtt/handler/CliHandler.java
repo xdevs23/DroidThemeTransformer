@@ -15,11 +15,11 @@ public class CliHandler {
     public static int process(String[] args) {
         if(args == null || args.length <= 0)
             return 0;
-        String mainArg = args[0];
-        String[] argArgs = new String[args.length - 1];
-        System.arraycopy(args, 1, argArgs, 0, args.length - 1);
+        String cmd = args[0];
+        String[] cmdArgs = new String[args.length - 1];
+        System.arraycopy(args, 1, cmdArgs, 0, args.length - 1);
 
-        switch(mainArg) {
+        switch(cmd) {
             case QUIT_CLI:
             case EXIT_CLI: return EXIT_CODE;
             case HELP:
@@ -34,7 +34,7 @@ public class CliHandler {
                 cout("Please specify a command.");
                 break;
             default:
-                cout("Command '" + mainArg + "' not recognized.");
+                cout("Command '" + cmd + "' not recognized.");
                 break;
         }
 
