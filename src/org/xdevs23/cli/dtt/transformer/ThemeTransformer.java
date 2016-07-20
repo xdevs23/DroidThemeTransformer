@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -133,12 +134,12 @@ public class ThemeTransformer {
                 }
 
                 if(!isDataLoaded) {
-                    print("CM theme overlays directory: ");
+                    if(!noPrompt) print("CM theme overlays directory: ");
                     cmDir = (noPrompt ? inputDir : readLine());
                     cmCommonResDir = (new File(cmDir, "common/res/values/")).getAbsolutePath();
                     cmDirF = new File(cmDir);
                     cmCommonResDirF = new File(cmCommonResDir);
-                    print("Output directory: ");
+                    if(!noPrompt) print("Output directory: ");
                     resultDir = (noPrompt ? outputDir : readLine());
                     resultDirF = new File(resultDir);
                     if(!noPrompt) {
@@ -218,7 +219,7 @@ public class ThemeTransformer {
                     // Replace the reference to common colors (looks like @*commom:color/color_name)
                     // with the actual color. Layers don't support common color reference
                     // in that way, so we need to replace them first.
-                    cout("Resolving common colors in overlays...");
+                    cout("Processing overlays...");
                     File[] overlays = cmDirF.listFiles();
                     if(overlays == null || overlays.length <= 0) {
                         cout("No overlays found.");
@@ -243,6 +244,7 @@ public class ThemeTransformer {
                         }
 
                         print("  - Processing overlay ", file.getName(), "...\n");
+                        cout("    - Resolving common colors...");
                         // We need input (CMTE) and output (layers)
                         DocumentBuilderFactory
                                  inFactory = DocumentBuilderFactory.newInstance(),
@@ -277,8 +279,9 @@ public class ThemeTransformer {
                             outDocument.getDocumentElement().appendChild(newColorNode);
                         }
 
+                        cout("    - Writing new color file...");
                         // Now save the new file
-                        File resultFile = new File(resultDirF, "overlays/" +
+                        File resultFile = new File(resultDirF, "assets/Files/theme/" +
                                 file.getName() + "/res/values/color.xml");
                         if(!resultFile.getParentFile().mkdirs())
                             DroidThemeTransformer.dontCare();
@@ -291,6 +294,46 @@ public class ThemeTransformer {
                         StreamResult result =
                                 new StreamResult(resultFile);
                         transformer.transform(source, result);
+
+                        cout("    - Writing manifest...");
+                        FileUtils.writeFileString(
+                                (new File(resultDirF,
+                                        "assets/Files/theme/" + file.getName() + "/AndroidManifest.xml"))
+                                    .getAbsolutePath(),
+                                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>\n" +
+                                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"" +
+                                "package=\"com.example.insert.pkg\" platformBuildVersionCode=\"23\"" +
+                                " platformBuildVersionName=\"6.0-2704002\">\n" +
+                                "    <overlay android:priority=\"50\" android:targetPackage=\"" + file.getName() +
+                                "\" />\n" +
+                                "</manifest>\n"
+                        );
+
+                        cout("    - Copying remaining resource files...");
+
+                        File[] resDirs = (new File(file.getAbsolutePath(), "res/")).listFiles();
+                        if(resDirs != null)
+                            for ( File resDir : resDirs ) {
+                                File[] resFiles = resDir.listFiles(new FilenameFilter() {
+                                    @Override
+                                    public boolean accept(File dir, String name) {
+                                        return !name.toLowerCase().contains("colors.xml");
+                                    }
+                                });
+                                if(resFiles != null)
+                                    for ( File resFile : resFiles ) {
+                                        File copyFile = new File(resultDirF,
+                                                "assets/Files/theme/" + file.getName()
+                                                        + "/res/"
+                                                        + resDir.getName() + "/"
+                                                        + resFile.getName());
+                                        if(copyFile.exists() &&
+                                                copyFile.delete()) DroidThemeTransformer.dontCare();
+                                        if(!copyFile.getParentFile().mkdirs())
+                                            DroidThemeTransformer.dontCare();
+                                        FileUtils.copy(resFile, copyFile);
+                                    }
+                            }
                     }
                     cout("All overlays processed!");
                 } catch(Exception ex) {
