@@ -37,3 +37,7 @@ proguard/
 .gradle/
 build/
 bin/
+
+# This file might have been created during debugging
+# but shouldn't be in the git repo
+details.txt
