@@ -1,10 +1,14 @@
 package org.xdevs23.cli.dtt;
 
 import org.xdevs23.cli.dtt.handler.CliHandler;
+import org.xdevs23.dtt.gui.DttGui;
+import org.xdevs23.dtt.gui.FromSourceGui;
 
 import java.io.IOException;
 
 public class DroidThemeTransformer {
+
+    private DttGui mGui;
 
     private static final String[] welcomeMessage = {
         "",
@@ -22,14 +26,20 @@ public class DroidThemeTransformer {
 
     }
 
+    private static void printText(String msg) {
+        if(FromSourceGui.consoleBox != null)
+            FromSourceGui.appendToConsole(msg);
+        else System.out.print(msg);
+    }
+
     public static void cout(String... msgs) {
         for ( String s : msgs )
-            System.out.println(s);
+            printText(s + "\n");
     }
 
     public static void print(String... msgs) {
         for ( String s : msgs )
-            System.out.print(s);
+            printText(s);
     }
 
     public static String readLine() {
@@ -37,8 +47,16 @@ public class DroidThemeTransformer {
     }
 
     public void run(String[] args) throws IOException {
-        cout(welcomeMessage);
-        CliHandler.openInterface();
+        if(args != null && args.length > 0) {
+            if(args[0].equals("nogui")) {
+                cout(welcomeMessage);
+                CliHandler.openInterface();
+                return;
+            }
+        }
+
+        // Show UI if no cli
+        mGui = new DttGui();
     }
 
     public static void dontCare() {

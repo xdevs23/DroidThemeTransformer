@@ -84,6 +84,13 @@ public class ThemeTransformer {
             return;
         }
 
+        boolean noPrompt = (args.length == 3 && args[1].contains("id") && args[2].contains("od"));
+        String inputDir = "", outputDir = "";
+        if(noPrompt) {
+            inputDir  = args[1].split("=")[1];
+            outputDir = args[2].split("=")[1];
+        }
+
         final String themeType = args[0].split("=")[1];
         switch(themeType) {
             case CMTE:
@@ -102,7 +109,7 @@ public class ThemeTransformer {
                 String cmDir = "", resultDir = "", cmCommonResDir = "";
                 File   cmDirF = null, resultDirF = null, cmCommonResDirF;
                 boolean isDataLoaded = false;
-                if (new File(".", "details.txt").exists()) {
+                if (new File(".", "details.txt").exists() && !noPrompt) {
                     print("Saved data found. Would you like to use that? [Y/n] ");
                     if (!readLine().toLowerCase().startsWith("n")) {
                         cout("  - Reading data...");
@@ -127,33 +134,35 @@ public class ThemeTransformer {
 
                 if(!isDataLoaded) {
                     print("CM theme overlays directory: ");
-                    cmDir = readLine();
+                    cmDir = (noPrompt ? inputDir : readLine());
                     cmCommonResDir = (new File(cmDir, "common/res/values/")).getAbsolutePath();
                     cmDirF = new File(cmDir);
                     cmCommonResDirF = new File(cmCommonResDir);
                     print("Output directory: ");
-                    resultDir = readLine();
+                    resultDir = (noPrompt ? outputDir : readLine());
                     resultDirF = new File(resultDir);
-                    cout("");
-                    cout("Please confirm the following details: ");
-                    cout("",
-                            " Input directory: " + cmDirF.getAbsolutePath(),
-                            "Output directory: " + resultDirF.getAbsolutePath(),
-                            "CM Theme common colors directory: " + cmCommonResDirF.getAbsolutePath()
-                    );
-
-                    cout("Press enter if the data is correct or type in 'abort' to stop the operation.");
-                    print("  > ");
-                    if (readLine().equalsIgnoreCase("abort")) {
-                        cout("Aborted.");
-                        break;
-                    }
-                    print("Do you wish to save those details? [Y/n] ");
-                    if (!readLine().toLowerCase().startsWith("n"))
-                        FileUtils.writeFileString((new File(".", "details.txt")).getAbsolutePath(),
-                                cmDirF.getAbsolutePath() + "\n" +
-                                        resultDirF.getAbsolutePath()
+                    if(!noPrompt) {
+                        cout("");
+                        cout("Please confirm the following details: ");
+                        cout("",
+                                " Input directory: " + cmDirF.getAbsolutePath(),
+                                "Output directory: " + resultDirF.getAbsolutePath(),
+                                "CM Theme common colors directory: " + cmCommonResDirF.getAbsolutePath()
                         );
+
+                        cout("Press enter if the data is correct or type in 'abort' to stop the operation.");
+                        print("  > ");
+                        if (readLine().equalsIgnoreCase("abort")) {
+                            cout("Aborted.");
+                            break;
+                        }
+                        print("Do you wish to save those details? [Y/n] ");
+                        if (!readLine().toLowerCase().startsWith("n"))
+                            FileUtils.writeFileString((new File(".", "details.txt")).getAbsolutePath(),
+                                    cmDirF.getAbsolutePath() + "\n" +
+                                            resultDirF.getAbsolutePath()
+                            );
+                    }
                 }
                 cout("");
                 cout("Let the magic begin!");

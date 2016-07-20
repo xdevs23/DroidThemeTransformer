@@ -8,4 +8,4 @@ read
 echo ""
 echo ""
 
-java -jar $ARTIFACT_PATH
+java -jar $ARTIFACT_PATH $@
