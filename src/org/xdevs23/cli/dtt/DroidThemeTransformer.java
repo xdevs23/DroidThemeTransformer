@@ -41,4 +41,8 @@ public class DroidThemeTransformer {
         CliHandler.openInterface();
     }
 
+    public static void dontCare() {
+        // I don't care
+    }
+
 }
