@@ -47,7 +47,11 @@ public class FileUtils {
                     stringBuilder.append(readString).append("\n");
                 }
 
-                stringBuilder.delete(stringBuilder.length() - 1, stringBuilder.length() - 2);
+                try {
+                    stringBuilder.delete(stringBuilder.length() - 1, stringBuilder.length() - 2);
+                } catch(Exception ex) {
+                    // Please don't care now.
+                }
 
                 inputStream.close();
                 logt("Read complete.");
