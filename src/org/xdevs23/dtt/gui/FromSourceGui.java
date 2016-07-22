@@ -2,9 +2,7 @@ package org.xdevs23.dtt.gui;
 
 import org.xdevs23.cli.dtt.transformer.ThemeTransformer;
 
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.JobAttributes;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 

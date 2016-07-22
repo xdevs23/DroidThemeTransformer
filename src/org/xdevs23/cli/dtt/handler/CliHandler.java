@@ -1,13 +1,16 @@
 package org.xdevs23.cli.dtt.handler;
 
-import org.xdevs23.cli.dtt.DroidThemeTransformer;
 import org.xdevs23.cli.dtt.misc.GPLv3License;
 import org.xdevs23.cli.dtt.misc.HelpText;
 import org.xdevs23.cli.dtt.transformer.ThemeTransformer;
 
-import static org.xdevs23.cli.dtt.handler.cli.Commands.*;
-import static org.xdevs23.cli.dtt.DroidThemeTransformer.print;
 import static org.xdevs23.cli.dtt.DroidThemeTransformer.cout;
+import static org.xdevs23.cli.dtt.DroidThemeTransformer.print;
+import static org.xdevs23.cli.dtt.handler.cli.Commands.EXIT_CLI;
+import static org.xdevs23.cli.dtt.handler.cli.Commands.HELP;
+import static org.xdevs23.cli.dtt.handler.cli.Commands.LICENSE;
+import static org.xdevs23.cli.dtt.handler.cli.Commands.QUIT_CLI;
+import static org.xdevs23.cli.dtt.handler.cli.Commands.TRANSFORM;
 
 public class CliHandler {
 
