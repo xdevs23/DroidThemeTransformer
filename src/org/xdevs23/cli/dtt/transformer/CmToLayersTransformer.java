@@ -2,6 +2,8 @@ package org.xdevs23.cli.dtt.transformer;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xdevs23.cli.dtt.DroidThemeTransformer;
 import org.xdevs23.debugutils.StackTraceParser;
@@ -112,6 +114,11 @@ public class CmToLayersTransformer {
         return loadedDirs;
     }
 
+    private ByteArrayInputStream getOutXmlSkeleton() {
+        return new ByteArrayInputStream(("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+                "<resources xmlns:android=\"http://schemas.android.com/apk/res/android\"></resources>").getBytes(StandardCharsets.UTF_8));
+    }
+
     public boolean transform(String inputDir, String outputDir, boolean noPrompt,
                              ThemeTransformer themeTransformer) {
         cout(
@@ -199,71 +206,194 @@ public class CmToLayersTransformer {
                 if (file.getName().equalsIgnoreCase("common")) continue;
 
                 print("  - Processing overlay ", file.getName(), "...\n");
+
                 File[] colorFiles = (new File(file, "res/values/")).listFiles(
                         new FilenameFilter() {
                             @Override
                             public boolean accept(File dir, String name) {
-                                // Only accept files with color.xml filename
+                                // Only accept files with colors.xml filename
                                 // as we are only processing colors
                                 return name.equalsIgnoreCase("colors.xml");
                             }
                         });
-
-                if (colorFiles == null || colorFiles.length <= 0) {
-                    print("  - Not processing ", file.getName(), ", no colors.xml found.\n");
-                    continue;
-                }
-
-                cout("    - Resolving common colors...");
-                // We need input (CMTE) and output (layers)
                 DocumentBuilderFactory
-                        inFactory = DocumentBuilderFactory.newInstance(),
-                        outFactory = DocumentBuilderFactory.newInstance();
+                        inFactory,
+                        outFactory;
                 DocumentBuilder
-                        inBuilder =  inFactory.newDocumentBuilder(),
-                        outBuilder = outFactory.newDocumentBuilder();
+                        inBuilder,
+                        outBuilder;
                 Document
-                        // Only one color.xml can be available, so use colorFiles
-                        // to get the file.
-                        inDocument =  inBuilder.parse(colorFiles[0]),
-                        // Needs to be a new document
-                        outDocument = outBuilder.parse(
-                                new ByteArrayInputStream(
-                                        ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-                                                "<resources>    \n    \n</resources>")
-                                                .getBytes(StandardCharsets.UTF_8)
-                                )
-                        );
-                Element inRoot = inDocument.getDocumentElement();
-                Element outRoot = outDocument.getDocumentElement();
-                NodeList inColorNodes = inRoot.getElementsByTagName("color");
-                for (int i = 0; i < inColorNodes.getLength(); i++) {
-                    String inValue, outValue, colorName;
-                    colorName = inColorNodes.item(i).getAttributes()
-                            .getNamedItem("name").getNodeValue();
-                    inValue = inColorNodes.item(i).getTextContent();
-                    outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
-                    Element newColorNode = outDocument.createElement("color");
-                    newColorNode.setAttribute("name", colorName);
-                    newColorNode.setTextContent(outValue);
-                    outDocument.getDocumentElement().appendChild(newColorNode);
+                        inDocument,
+                        outDocument;
+
+                if(colorFiles != null && colorFiles.length > 0) {
+                    cout("    - Processing colors...");
+                    cout("     - Resolving common colors...");
+                    // We need input (CMTE) and output (layers)
+                    inFactory = DocumentBuilderFactory.newInstance();
+                    outFactory = DocumentBuilderFactory.newInstance();
+                    inBuilder = inFactory.newDocumentBuilder();
+                    outBuilder = outFactory.newDocumentBuilder();
+                    // Only one colors.xml can be available, so use colorFiles
+                    // to get the file
+                    try {
+                        inDocument = inBuilder.parse(colorFiles[0]);
+                    } catch(Exception ex) {
+                        cout("Failed to parse XML for colors in overlay " + file.getName());
+                        cout(StackTraceParser.parse(ex));
+                        return false;
+                    }
+                    // Needs to be a new document
+                    outDocument = builder.parse(getOutXmlSkeleton());
+                    Element inRoot = inDocument.getDocumentElement();
+                    Element outRoot = outDocument.getDocumentElement();
+                    NodeList inColorNodes = inRoot.getElementsByTagName("color");
+                    for (int i = 0; i < inColorNodes.getLength(); i++) {
+                        String inValue, outValue, colorName;
+                        colorName = inColorNodes.item(i).getAttributes()
+                                .getNamedItem("name").getNodeValue();
+                        inValue = inColorNodes.item(i).getTextContent();
+                        outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
+                        Element newColorNode = outDocument.createElement("color");
+                        newColorNode.setAttribute("name", colorName);
+                        newColorNode.setTextContent(outValue);
+                        outDocument.getDocumentElement().appendChild(newColorNode);
+                    }
+
+                    cout("     - Writing new color file...");
+                    // Now save the new file
+                    File resultFile = new File(resultDirF, "assets/Files/theme/" +
+                            file.getName() + "/res/values/colors.xml");
+                    if(!resultFile.getParentFile().mkdirs())
+                        DroidThemeTransformer.dontCare();
+                    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                    Transformer transformer = transformerFactory.newTransformer();
+                    DOMSource source = new DOMSource(outDocument);
+                    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+                            "4");
+                    StreamResult result =
+                            new StreamResult(resultFile);
+                    transformer.transform(source, result);
                 }
 
-                cout("    - Writing new color file...");
-                // Now save the new file
-                File resultFile = new File(resultDirF, "assets/Files/theme/" +
-                        file.getName() + "/res/values/color.xml");
-                if(!resultFile.getParentFile().mkdirs())
-                    DroidThemeTransformer.dontCare();
-                TransformerFactory transformerFactory = TransformerFactory.newInstance();
-                Transformer transformer = transformerFactory.newTransformer();
-                DOMSource source = new DOMSource(outDocument);
-                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-                transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
-                        "4");
-                StreamResult result =
-                        new StreamResult(resultFile);
-                transformer.transform(source, result);
+
+
+                File[] styleFiles = (new File(file, "res/values/")).listFiles(
+                        new FilenameFilter() {
+                            @Override
+                            public boolean accept(File dir, String name) {
+                                // Only accept files with styles.xml filename
+                                // as we are only processing styles
+                                return name.equalsIgnoreCase("styles.xml");
+                            }
+                        });
+
+                if(styleFiles != null && styleFiles.length > 0) {
+                    cout("    - Processing styles...");
+                    // We need input (CMTE) and output (layers)
+                    inFactory = DocumentBuilderFactory.newInstance();
+                    outFactory = DocumentBuilderFactory.newInstance();
+                    inBuilder = inFactory.newDocumentBuilder();
+                    outBuilder = outFactory.newDocumentBuilder();
+
+                    cout("     - Resolving common colors...");
+                    // Only one styles.xml can be available, so use stylesFiles
+                    // to get the file.
+                    try {
+                        inDocument = inBuilder.parse(styleFiles[0]);
+                    } catch(Exception ex) {
+                        cout("Failed to parse XML for styles in overlay " + file.getName());
+                        cout(StackTraceParser.parse(ex));
+                        return false;
+                    }
+                    outDocument = outBuilder.parse(getOutXmlSkeleton());
+                    Element inRoot = inDocument.getDocumentElement();
+                    Element outRoot = outDocument.getDocumentElement();
+                    NodeList styleNodes = inRoot.getElementsByTagName("style");
+                    for (int i = 0; i < styleNodes.getLength(); i++) {
+                        final NodeList inInStyleNodesTmp = styleNodes.item(i).getChildNodes();
+                        NodeList inInStyleNodes = new NodeList() {
+                            private ArrayList<Node> nodes = new ArrayList<>();
+
+                            public Node addAllNonEmptyNodes(NodeList list) {
+                                for( int x = 0; x < list.getLength(); x++) {
+                                    Node node = list.item(x);
+                                    if(node != null && node.getAttributes() != null &&
+                                            node.getAttributes().getLength() > 0 &&
+                                            node.getTextContent() != null &&
+                                            node.getAttributes().getNamedItem("name") != null)
+                                        nodes.add(node);
+                                }
+                                return null;
+                            }
+
+                            @Override
+                            public Node item(int index) {
+                                return (index == -1 ? addAllNonEmptyNodes(inInStyleNodesTmp)
+                                        : nodes.get(index));
+                            }
+
+                            @Override
+                            public int getLength() {
+                                return nodes.size();
+                            }
+                        };
+
+                        inInStyleNodes.item(-1);
+
+                        Element[] newStyleNodes = new Element[inInStyleNodes.getLength()];
+                        String styleName, styleParent = "";
+                        boolean hasStyleParent = styleNodes.item(i).getAttributes().getLength() > 1;
+                        styleName = styleNodes.item(i).getAttributes().getNamedItem("name")
+                                        .getNodeValue();
+                        if(hasStyleParent) styleParent = styleNodes.item(i).getAttributes()
+                                            .getNamedItem("parent").getNodeValue();
+                        for (int ix = 0; ix < inInStyleNodes.getLength(); ix++) {
+                            String inValue, outValue, nameAttrValue;
+                            NamedNodeMap attrs = inInStyleNodes.item(ix).getAttributes();
+                            Node nameAttr = (attrs == null ? null : attrs.getNamedItem("name"));
+                            nameAttrValue = (nameAttr == null ? "" : nameAttr.getNodeValue());
+                            if (!(inInStyleNodes.item(ix).getTextContent().contains("color/") ||
+                                    inInStyleNodes.item(ix).getTextContent().startsWith("#"))) {
+                                outValue = inInStyleNodes.item(ix).getTextContent();
+                            } else {
+                                inValue = inInStyleNodes.item(ix).getTextContent();
+                                outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
+                            }
+                            Element newInsideStyleNode = outDocument.createElement("item");
+                            newInsideStyleNode.setAttribute("name", nameAttrValue);
+                            newInsideStyleNode.setTextContent(outValue);
+                            newStyleNodes[ix] = newInsideStyleNode;
+                        }
+                        Element newStyleElement = outDocument.createElement("style");
+                        if(styleName.length() > 0) newStyleElement.setAttribute("name", styleName);
+                        if(hasStyleParent) newStyleElement.setAttribute("parent", styleParent);
+                        for ( int ix = 0; ix < newStyleNodes.length; ix++ ) {
+                            Element element = newStyleNodes[ix];
+                            if(element == null)
+                                cout("      Warning: element " + ix + " is null in style " + styleName);
+                            else newStyleElement.appendChild(element);
+                        }
+                        outDocument.getDocumentElement().appendChild(newStyleElement);
+                    }
+
+                    cout("     - Writing new style file...");
+                    // Now save the new file
+                    File resultFile = new File(resultDirF, "assets/Files/theme/" +
+                            file.getName() + "/res/values/styles.xml");
+                    if(!resultFile.getParentFile().mkdirs())
+                        DroidThemeTransformer.dontCare();
+                    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                    Transformer transformer = transformerFactory.newTransformer();
+                    DOMSource source = new DOMSource(outDocument);
+                    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+                            "4");
+                    StreamResult result =
+                            new StreamResult(resultFile);
+                    transformer.transform(source, result);
+                }
 
                 cout("    - Writing manifest...");
                 FileUtils.writeFileString(
@@ -271,15 +401,13 @@ public class CmToLayersTransformer {
                                 "assets/Files/theme/" + file.getName() + "/AndroidManifest.xml"))
                                 .getAbsolutePath(),
                         "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>\n" +
-                                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"" +
+                                "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" " +
                                 "package=\"com.example.insert.pkg\" platformBuildVersionCode=\"23\"" +
                                 " platformBuildVersionName=\"6.0-2704002\">\n" +
                                 "    <overlay android:priority=\"50\" android:targetPackage=\"" + file.getName() +
                                 "\" />\n" +
                                 "</manifest>\n"
                 );
-
-
 
                 cout("    - Copying remaining resource files...");
 
@@ -289,7 +417,7 @@ public class CmToLayersTransformer {
                         File[] resFiles = resDir.listFiles(new FilenameFilter() {
                             @Override
                             public boolean accept(File dir, String name) {
-                                return !name.toLowerCase().contains("colors.xml");
+                                return !name.toLowerCase().matches("colors[.]xml|styles[.]xml");
                             }
                         });
                         if(resFiles != null)
