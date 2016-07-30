@@ -1,6 +1,7 @@
 package org.xdevs23.cli.dtt;
 
 import org.xdevs23.cli.dtt.handler.CliHandler;
+import org.xdevs23.cli.dtt.transformer.ThemeTransformer;
 import org.xdevs23.dtt.gui.DttGui;
 import org.xdevs23.dtt.gui.FromSourceGui;
 
@@ -49,6 +50,12 @@ public class DroidThemeTransformer {
     public void run(String[] args) throws IOException {
         if(args != null && args.length > 0) {
             if(args[0].equals("nogui")) {
+                if(args[1].equals("direct")) {
+                    String[] trimmedArgs = new String[args.length - 2];
+                    System.arraycopy(args, 2, trimmedArgs, 0, trimmedArgs.length);
+                    handleDirectCall(trimmedArgs);
+                    return;
+                }
                 cout(welcomeMessage);
                 CliHandler.openInterface();
                 return;
@@ -57,6 +64,10 @@ public class DroidThemeTransformer {
 
         // Show UI if no cli
         mGui = new DttGui();
+    }
+
+    private void handleDirectCall(String[] args) {
+        CliHandler.process(args);
     }
 
     public static void dontCare() {
