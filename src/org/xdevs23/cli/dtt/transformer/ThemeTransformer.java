@@ -1,5 +1,10 @@
 package org.xdevs23.cli.dtt.transformer;
 
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 
@@ -46,6 +51,39 @@ public class ThemeTransformer {
         return outValue;
     }
 
+    protected static Node resolveNode(Node node, ArrayList<String> acv, ArrayList<String> ck,
+                                      boolean recursively) {
+        if(node == null) return null;
+        if(node.getTextContent() != null && needResolveColor(node.getTextContent()))
+            node.setTextContent(resolveColor(node.getTextContent(), acv, ck));
+        if(node.getAttributes() != null) {
+            for (int i = 0; i < node.getAttributes().getLength(); i++) {
+                if(node.getAttributes().item(i) != null) {
+                    String attrName  = node.getAttributes().item(i).getNodeName();
+                    String attrValue = node.getAttributes().item(i).getNodeValue();
+                    if(needResolveColor(attrValue))
+                        attrValue = resolveColor(attrValue, acv, ck);
+                    node.getAttributes().item(i).setNodeValue(attrValue);
+                }
+            }
+        }
+        if(recursively && node.getChildNodes() != null && node.getChildNodes().getLength() > 0) {
+            for (int i = 0; i < node.getChildNodes().getLength(); i++) {
+                resolveNode(node.getChildNodes().item(i), acv, ck, true);
+            }
+        }
+        return node;
+    }
+
+    protected static ManagedNodeList resolveNodes(Element rootElement,
+                                                  ArrayList<String> acv, ArrayList<String> ck) {
+        ManagedNodeList list = new ManagedNodeList();
+        for (int i = 0; i < rootElement.getChildNodes().getLength(); i++)
+            list.addNode(resolveNode(rootElement.getChildNodes().item(i), acv, ck, true));
+
+        return list;
+    }
+
     protected void checkResolveNecessary(ArrayList<String> colorValues) {
         isCommonResolved = true;
         colorValues.forEach(new Consumer<String>() {
@@ -87,6 +125,28 @@ public class ThemeTransformer {
             default:
                 print("Theme type ", themeType, " is unknown.", "\n");
                 break;
+        }
+    }
+
+    public static class ManagedNodeList implements NodeList {
+        private ArrayList<Node> mNodes = new ArrayList<>();
+
+        @Override
+        public Node item(int index) {
+            return mNodes.get(index);
+        }
+
+        @Override
+        public int getLength() {
+            return mNodes.size();
+        }
+
+        public void addNode(Node node) {
+            mNodes.add(node);
+        }
+
+        public Node[] getAll() {
+            return mNodes.toArray(new Node[getLength()]);
         }
     }
 

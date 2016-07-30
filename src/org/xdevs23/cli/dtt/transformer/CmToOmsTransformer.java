@@ -278,8 +278,6 @@ public class CmToOmsTransformer {
                     transformer.transform(source, result);
                 }
 
-
-
                 File[] styleFiles = (new File(file, "res/values/")).listFiles(
                         new FilenameFilter() {
                             @Override
@@ -396,6 +394,85 @@ public class CmToOmsTransformer {
                     transformer.transform(source, result);
                 }
 
+                File[] drawableFiles = (new File(file, "res/drawable/")).listFiles(
+                        new FilenameFilter() {
+                            @Override
+                            public boolean accept(File dir, String name) {
+                                return name.matches(".*[.]xml"); // .xml only
+                            }
+                        });
+
+                if(drawableFiles != null && drawableFiles.length > 0) {
+                    cout("    - Processing drawables...");
+                    // We need input (CMTE) and output (layers)
+                    inFactory = DocumentBuilderFactory.newInstance();
+                    outFactory = DocumentBuilderFactory.newInstance();
+                    inBuilder = inFactory.newDocumentBuilder();
+                    outBuilder = outFactory.newDocumentBuilder();
+
+                    for (int dxf = 0; dxf < drawableFiles.length; dxf++) {
+                        String drawableName = drawableFiles[dxf].getName();
+                        cout("     - Processing drawable '" + drawableName + "'...");
+                        try {
+                            inDocument = inBuilder.parse(drawableFiles[dxf]);
+                        } catch (Exception ex) {
+                            cout("Failed to parse XML for styles in overlay " + file.getName());
+                            cout(StackTraceParser.parse(ex));
+                            return false;
+                        }
+
+                        StringBuilder outDocumentSkeleton = new StringBuilder();
+                        outDocumentSkeleton.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+                        outDocumentSkeleton
+                                .append("<")
+                                .append(inDocument.getDocumentElement().getNodeName())
+                                .append(" ")
+                                ;
+                        NamedNodeMap allInAttrs = inDocument.getDocumentElement().getAttributes();
+                        if(allInAttrs != null)
+                            for ( int attrId = 0; attrId < allInAttrs.getLength(); attrId++ )
+                                outDocumentSkeleton
+                                        .append(allInAttrs.item(attrId).getNodeName())
+                                        .append("=\"")
+                                        .append(allInAttrs.item(attrId).getNodeValue())
+                                        .append("\" ")
+                                ;
+                        outDocumentSkeleton
+                                .append("></")
+                                .append(inDocument.getDocumentElement().getNodeName())
+                                .append(">")
+                                ;
+
+                        outDocument = inBuilder.parse(new ByteArrayInputStream(
+                                outDocumentSkeleton.toString().getBytes(StandardCharsets.UTF_8)
+                        ));
+
+                        Element inRoot = inDocument.getDocumentElement();
+                        Element outRoot = outDocument.getDocumentElement();
+                        cout("      - Resolving common colors...");
+                        ThemeTransformer.ManagedNodeList newList =
+                            ThemeTransformer.resolveNodes(inRoot, commonColorValues, commonColorKeys);
+                        for (Node node : newList.getAll())
+                            outRoot.appendChild(outDocument.importNode(node, true));
+
+                        cout("      - Writing new drawable file...");
+                        // Now save the new file
+                        File resultFile = new File(resultDirF, "assets/overlays/" +
+                                file.getName() + "/res/drawable/" + drawableName);
+                        if (!resultFile.getParentFile().mkdirs())
+                            DroidThemeTransformer.dontCare();
+                        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                        Transformer transformer = transformerFactory.newTransformer();
+                        DOMSource source = new DOMSource(outDocument);
+                        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+                                "4");
+                        StreamResult result =
+                                new StreamResult(resultFile);
+                        transformer.transform(source, result);
+                    }
+                }
+
                 cout("    - Copying remaining resource files...");
 
                 File[] resDirs = (new File(file.getAbsolutePath(), "res/")).listFiles();
@@ -404,7 +481,9 @@ public class CmToOmsTransformer {
                         File[] resFiles = resDir.listFiles(new FilenameFilter() {
                             @Override
                             public boolean accept(File dir, String name) {
-                                return !name.toLowerCase().matches("colors[.]xml|styles[.]xml");
+                                return ! ((dir.getName().matches("drawable") &&
+                                            name.matches(".*[.]xml")) ||
+                                            (name.toLowerCase().matches("colors[.]xml|styles[.]xml")));
                             }
                         });
                         if(resFiles != null)
