@@ -10,7 +10,7 @@ public class ThemeTransformer {
 
     private static final String
             CMTE        = "cmte",
-            LAYERS      = "layers"
+            OMS         = "oms"     // Substratum
                     ;
 
     boolean isCommonResolved = false;
@@ -75,13 +75,13 @@ public class ThemeTransformer {
         switch(themeType) {
             case CMTE:
                 cout(
-                        "You decided to transform a layers theme into a CM theme.",
+                        "You decided to transform a Substratum theme into a CM theme.",
                         "Let's start!"
                 );
                 cout("Sorry, but unfortunately CMTE is not implemented yet.");
                 break;
-            case LAYERS:
-                if(!CmToLayersTransformer.startTransform(inputDir, outputDir, noPrompt, this))
+            case OMS:
+                if(!CmToOmsTransformer.startTransform(inputDir, outputDir, noPrompt, this))
                     cout("An error occured while transforming.");
                 break;
             default:

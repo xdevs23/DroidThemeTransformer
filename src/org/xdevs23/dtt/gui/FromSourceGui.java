@@ -53,7 +53,7 @@ public class FromSourceGui {
         frame.invalidate();
 
         JLabel inputSrcLbl  = new JLabel("Overlays folder of CM theme");
-        JLabel outputSrcLbl = new JLabel("Output folder for layers theme");
+        JLabel outputSrcLbl = new JLabel("Output folder for Substratum theme");
         mainPanel.add(inputSrcLbl);
         mainPanel.add(outputSrcLbl);
 
@@ -99,7 +99,7 @@ public class FromSourceGui {
             public void actionPerformed(ActionEvent e) {
                 JFileChooser chooser = new JFileChooser();
                 chooser.setDialogType(JFileChooser.OPEN_DIALOG);
-                chooser.setDialogTitle("Choose Layers output directory");
+                chooser.setDialogTitle("Choose Substratum output directory");
                 chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
                 chooser.setMultiSelectionEnabled(false);
                 if(chooser.showDialog(null, "Select") == JFileChooser.APPROVE_OPTION)
@@ -116,7 +116,7 @@ public class FromSourceGui {
             @Override
             public void actionPerformed(ActionEvent e) {
                 ThemeTransformer.startNewTransform(new String[] {
-                        "to=layers",
+                        "to=oms",
                         "id=" + inputSrcTxt.getText(),
                         "od=" + outputSrcTxt.getText()
                 });

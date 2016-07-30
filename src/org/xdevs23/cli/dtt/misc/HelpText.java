@@ -25,7 +25,7 @@ public final class HelpText {
             "Options for 'transform': ",
             "",
             "   to=                 What the theme should be transformed to",
-            "                       Valid arguments are: cmte, layers",
+            "                       Valid arguments are: cmte, oms",
             "",
     };
 
