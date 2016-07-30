@@ -146,7 +146,7 @@ public class CmToOmsTransformer {
         cout("");
         cout("Let the magic begin!");
         cout("");
-        cout("Collecting common colors...");
+        cout("Collecting colors...");
         // Prepare stuff for XML reading
         DocumentBuilderFactory factory;
         DocumentBuilder builder;
@@ -165,6 +165,69 @@ public class CmToOmsTransformer {
                         "(commonResFiles is null)");
                 return false;
             }
+
+            try {
+                File[] overlays = cmDirF.listFiles();
+                if(overlays == null || overlays.length <= 0) {
+                    cout("No overlays found.");
+                    return false;
+                }
+                for ( File file : overlays ) {
+                    if (file.getName().equalsIgnoreCase("common")) continue;
+
+                    print("  - Processing overlay ", file.getName(), "...\n");
+
+                    File[] colorFiles = (new File(file, "res/values/")).listFiles(
+                            new FilenameFilter() {
+                                @Override
+                                public boolean accept(File dir, String name) {
+                                    // Only accept files with colors.xml filename
+                                    // as we are only processing colors
+                                    return name.equalsIgnoreCase("colors.xml");
+                                }
+                            });
+                    DocumentBuilderFactory
+                            inFactory,
+                            outFactory;
+                    DocumentBuilder
+                            inBuilder,
+                            outBuilder;
+                    Document
+                            inDocument,
+                            outDocument;
+
+                    if (colorFiles != null && colorFiles.length > 0) {
+                        // We need input (CMTE) and output (oms)
+                        inFactory = DocumentBuilderFactory.newInstance();
+                        outFactory = DocumentBuilderFactory.newInstance();
+                        inBuilder = inFactory.newDocumentBuilder();
+                        // Only one colors.xml can be available, so use colorFiles
+                        // to get the file
+                        try {
+                            inDocument = inBuilder.parse(colorFiles[0]);
+                        } catch(Exception ex) {
+                            cout("Failed to parse XML for colors in overlay " + file.getName());
+                            cout(StackTraceParser.parse(ex));
+                            return false;
+                        }
+                        // Needs to be a new document
+                        outDocument = builder.parse(getOutXmlSkeleton());
+                        Element inRoot = inDocument.getDocumentElement();
+                        NodeList inColorNodes = inRoot.getElementsByTagName("color");
+                        for (int i = 0; i < inColorNodes.getLength(); i++) {
+                            String inValue, colorName;
+                            colorName = inColorNodes.item(i).getAttributes()
+                                    .getNamedItem("name").getNodeValue();
+                            inValue = inColorNodes.item(i).getTextContent();
+                            commonColorKeys.add(colorName);
+                            commonColorValues.add(inValue);
+                        }
+                    }
+                }
+            } catch(Exception ex2) {
+                // Ignore
+            }
+
             for ( File file : commonResFiles) {
                 cout("  - Found file " + file.getName());
                 doc = builder.parse(file);
@@ -177,7 +240,7 @@ public class CmToOmsTransformer {
                 }
             }
 
-            cout("Resolving common color references in common color definitions...");
+            cout("Resolving color references in common definitions...");
 
             int depth = 1;
             themeTransformer.isCommonResolved = true;
@@ -230,7 +293,7 @@ public class CmToOmsTransformer {
                 if(colorFiles != null && colorFiles.length > 0) {
                     cout("    - Processing colors...");
                     cout("     - Resolving common colors...");
-                    // We need input (CMTE) and output (layers)
+                    // We need input (CMTE) and output (oms)
                     inFactory = DocumentBuilderFactory.newInstance();
                     outFactory = DocumentBuilderFactory.newInstance();
                     inBuilder = inFactory.newDocumentBuilder();
