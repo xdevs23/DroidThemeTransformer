@@ -50,7 +50,7 @@ public class DroidThemeTransformer {
     public void run(String[] args) throws IOException {
         if(args != null && args.length > 0) {
             if(args[0].equals("nogui")) {
-                if(args[1].equals("direct")) {
+                if(args.length > 1 && args[1].equals("direct")) {
                     String[] trimmedArgs = new String[args.length - 2];
                     System.arraycopy(args, 2, trimmedArgs, 0, trimmedArgs.length);
                     handleDirectCall(trimmedArgs);
