@@ -27,7 +27,9 @@ import static org.xdevs23.cli.dtt.DroidThemeTransformer.cout;
 import static org.xdevs23.cli.dtt.DroidThemeTransformer.print;
 import static org.xdevs23.cli.dtt.DroidThemeTransformer.readLine;
 import static org.xdevs23.cli.dtt.transformer.ThemeTransformer.needResolveColor;
+import static org.xdevs23.cli.dtt.transformer.ThemeTransformer.needResolveDimen;
 import static org.xdevs23.cli.dtt.transformer.ThemeTransformer.resolveColor;
+import static org.xdevs23.cli.dtt.transformer.ThemeTransformer.resolveDimen;
 
 public class CmToOmsTransformer {
 
@@ -146,18 +148,20 @@ public class CmToOmsTransformer {
         cout("");
         cout("Let the magic begin!");
         cout("");
-        cout("Collecting colors...");
         // Prepare stuff for XML reading
         DocumentBuilderFactory factory;
         DocumentBuilder builder;
         Document doc;
-        ArrayList<String> commonColorKeys, commonColorValues;
+        ArrayList<String> commonColorKeys, commonColorValues, dimensKeys, dimensValues;
         try {
+            cout("Collecting colors...");
             factory =
                     DocumentBuilderFactory.newInstance();
             builder = factory.newDocumentBuilder();
             commonColorKeys   = new ArrayList<>();
             commonColorValues = new ArrayList<>();
+            dimensKeys        = new ArrayList<>();
+            dimensValues      = new ArrayList<>();
             // Collect common colors
             File[] commonResFiles = (new File(cmCommonResDir)).listFiles();
             if(commonResFiles == null || commonResFiles.length <= 0) {
@@ -165,13 +169,14 @@ public class CmToOmsTransformer {
                         "(commonResFiles is null)");
                 return false;
             }
-
+            File[] dimenFiles = new File[1];
             try {
                 File[] overlays = cmDirF.listFiles();
                 if(overlays == null || overlays.length <= 0) {
                     cout("No overlays found.");
                     return false;
                 }
+
                 for ( File file : overlays ) {
                     if (file.getName().equalsIgnoreCase("common")) continue;
 
@@ -223,6 +228,33 @@ public class CmToOmsTransformer {
                             commonColorValues.add(inValue);
                         }
                     }
+
+                    dimenFiles = (new File(file, "res/values/")).listFiles(
+                            new FilenameFilter() {
+                                @Override
+                                public boolean accept(File dir, String name) {
+                                    // Only accept files with colors.xml filename
+                                    // as we are only processing colors
+                                    return name.equalsIgnoreCase("dimens.xml");
+                                }
+                            });
+
+                    /// Dimens
+
+                    if (dimenFiles != null && dimenFiles.length > 0) {
+                        for (File dfile : dimenFiles) {
+                            doc = builder.parse(dfile);
+                            Element root = doc.getDocumentElement();
+                            NodeList dimenNodes = root.getElementsByTagName("dimen");
+                            for (int i = 0; i < dimenNodes.getLength(); i++) {
+                                dimensKeys.add(dimenNodes.item(i).getAttributes()
+                                        .getNamedItem("name").getNodeValue());
+                                dimensValues.add(dimenNodes.item(i).getTextContent());
+                            }
+                        }
+                    }
+
+                    /// --
                 }
             } catch(Exception ex2) {
                 // Ignore
@@ -253,6 +285,23 @@ public class CmToOmsTransformer {
                                 commonColorValues, commonColorKeys));
                 }
                 themeTransformer.checkResolveNecessary(commonColorValues);
+                depth++;
+            }
+            depth = 0;
+
+            cout("Resolving dimensions...");
+
+            depth = 1;
+            themeTransformer.isDimenResolved = true;
+            themeTransformer.checkDimenResolveNecessary(dimensValues);
+            while(!themeTransformer.isDimenResolved) {
+                cout("  - Stage " + depth);
+                for (int i = 0; i < dimensValues.size(); i++) {
+                    if(needResolveDimen(dimensValues.get(i)))
+                        dimensValues.set(i, resolveDimen(dimensValues.get(i),
+                                dimensValues, dimensKeys));
+                }
+                themeTransformer.checkDimenResolveNecessary(dimensValues);
                 depth++;
             }
             depth = 0;
@@ -341,6 +390,61 @@ public class CmToOmsTransformer {
                     transformer.transform(source, result);
                 }
 
+                /// Dimens
+
+                if(dimenFiles != null && dimenFiles.length > 0) {
+                    cout("     - Processing dimensions...");
+                    // We need input (CMTE) and output (oms)
+                    inFactory = DocumentBuilderFactory.newInstance();
+                    outFactory = DocumentBuilderFactory.newInstance();
+                    inBuilder = inFactory.newDocumentBuilder();
+                    outBuilder = outFactory.newDocumentBuilder();
+                    // Only one colors.xml can be available, so use colorFiles
+                    // to get the file
+                    try {
+                        inDocument = inBuilder.parse(dimenFiles[0]);
+                    } catch (Exception ex) {
+                        cout("Failed to parse XML for dimen in overlay " + file.getName());
+                        cout(StackTraceParser.parse(ex));
+                        return false;
+                    }
+                    // Needs to be a new document
+                    outDocument = builder.parse(getOutXmlSkeleton());
+                    Element inRoot = inDocument.getDocumentElement();
+                    Element outRoot = outDocument.getDocumentElement();
+                    NodeList inDimenNodes = inRoot.getElementsByTagName("dimen");
+                    for (int i = 0; i < inDimenNodes.getLength(); i++) {
+                        String inValue, outValue, dimenName;
+                        dimenName = inDimenNodes.item(i).getAttributes()
+                                .getNamedItem("name").getNodeValue();
+                        inValue = inDimenNodes.item(i).getTextContent();
+                        outValue = resolveDimen(inValue, dimensValues, dimensKeys);
+                        Element newDimenNode = outDocument.createElement("dimen");
+                        newDimenNode.setAttribute("name", dimenName);
+                        newDimenNode.setTextContent(outValue);
+                        outDocument.getDocumentElement().appendChild(newDimenNode);
+                    }
+
+                    cout("     - Writing new dimen file...");
+                    // Now save the new file
+                    File resultFile = new File(resultDirF, "assets/overlays/" +
+                            file.getName() + "/res/values/dimens.xml");
+                    if (!resultFile.getParentFile().mkdirs())
+                        DroidThemeTransformer.dontCare();
+                    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                    Transformer transformer = transformerFactory.newTransformer();
+                    DOMSource source = new DOMSource(outDocument);
+                    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+                            "4");
+                    StreamResult result =
+                            new StreamResult(resultFile);
+                    transformer.transform(source, result);
+
+                }
+                /// ---
+
+
                 File[] styleFiles = (new File(file, "res/values/")).listFiles(
                         new FilenameFilter() {
                             @Override
@@ -359,7 +463,7 @@ public class CmToOmsTransformer {
                     inBuilder = inFactory.newDocumentBuilder();
                     outBuilder = outFactory.newDocumentBuilder();
 
-                    cout("     - Resolving common colors...");
+                    cout("     - Resolving colors and dimensions...");
                     // Only one styles.xml can be available, so use stylesFiles
                     // to get the file.
                     try {
@@ -422,6 +526,11 @@ public class CmToOmsTransformer {
                             } else {
                                 inValue = inInStyleNodes.item(ix).getTextContent();
                                 outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
+                            }
+                            if(inInStyleNodes.item(ix).getTextContent().contains("dimen/")) {
+                                inValue = inInStyleNodes.item(ix).getTextContent();
+                                outValue = resolveDimen(inValue, dimensValues, dimensKeys);
+                                cout("Resolved dimen to value " + outValue);
                             }
                             Element newInsideStyleNode = outDocument.createElement("item");
                             newInsideStyleNode.setAttribute("name", nameAttrValue);
@@ -512,9 +621,10 @@ public class CmToOmsTransformer {
 
                         Element inRoot = inDocument.getDocumentElement();
                         Element outRoot = outDocument.getDocumentElement();
-                        cout("      - Resolving common colors...");
+                        cout("      - Resolving dimensions and colors...");
                         ThemeTransformer.ManagedNodeList newList =
-                            ThemeTransformer.resolveNodes(inRoot, commonColorValues, commonColorKeys);
+                            ThemeTransformer.resolveNodes(inRoot, commonColorValues, commonColorKeys,
+                                    dimensValues, dimensKeys);
                         for (Node node : newList.getAll())
                             outRoot.appendChild(outDocument.importNode(node, true));
 
@@ -546,7 +656,8 @@ public class CmToOmsTransformer {
                             public boolean accept(File dir, String name) {
                                 return ! ((dir.getName().matches("drawable") &&
                                             name.matches(".*[.]xml")) ||
-                                            (name.toLowerCase().matches("colors[.]xml|styles[.]xml")));
+                                            (name.toLowerCase()
+                                                    .matches("colors[.]xml|styles[.]xml|dimens[.]xml")));
                             }
                         });
                         if(resFiles != null)
