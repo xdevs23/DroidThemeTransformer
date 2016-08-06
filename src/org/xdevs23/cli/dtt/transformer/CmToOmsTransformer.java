@@ -530,7 +530,6 @@ public class CmToOmsTransformer {
                             if(inInStyleNodes.item(ix).getTextContent().contains("dimen/")) {
                                 inValue = inInStyleNodes.item(ix).getTextContent();
                                 outValue = resolveDimen(inValue, dimensValues, dimensKeys);
-                                cout("Resolved dimen to value " + outValue);
                             }
                             Element newInsideStyleNode = outDocument.createElement("item");
                             newInsideStyleNode.setAttribute("name", nameAttrValue);
@@ -584,11 +583,11 @@ public class CmToOmsTransformer {
 
                     for (int dxf = 0; dxf < drawableFiles.length; dxf++) {
                         String drawableName = drawableFiles[dxf].getName();
-                        cout("     - Processing drawable '" + drawableName + "'...");
                         try {
                             inDocument = inBuilder.parse(drawableFiles[dxf]);
                         } catch (Exception ex) {
-                            cout("Failed to parse XML for styles in overlay " + file.getName());
+                            cout("Failed to parse XML for drawable " + drawableFiles[dxf]
+                                    + "in overlay " + file.getName());
                             cout(StackTraceParser.parse(ex));
                             return false;
                         }
