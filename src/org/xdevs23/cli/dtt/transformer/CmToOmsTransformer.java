@@ -392,6 +392,19 @@ public class CmToOmsTransformer {
 
                 /// Dimens
 
+                dimenFiles = (new File(file, "res/values/")).listFiles(
+                        new FilenameFilter() {
+                            @Override
+                            public boolean accept(File dir, String name) {
+                                // Only accept files with colors.xml filename
+                                // as we are only processing colors
+                                return name.equalsIgnoreCase("dimens.xml");
+                            }
+                        });
+
+                /// Dimens
+
+
                 if(dimenFiles != null && dimenFiles.length > 0) {
                     cout("     - Processing dimensions...");
                     // We need input (CMTE) and output (oms)
