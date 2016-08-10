@@ -30,7 +30,9 @@ proguard/
 *.iml
 *.ipr
 *.iws
-.idea/
+.idea/compiler.xml
+.idea/vcs.xml
+.idea/copyright/
 
 #Gradle
 .gradletasknamecache
