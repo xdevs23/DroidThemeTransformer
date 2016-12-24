@@ -457,125 +457,142 @@ public class CmToOmsTransformer {
                 }
                 /// ---
 
+                ArrayList<File> styleFiles = new ArrayList<>();
 
-                File[] styleFiles = (new File(file, "res/values/")).listFiles(
-                        new FilenameFilter() {
-                            @Override
-                            public boolean accept(File dir, String name) {
-                                // Only accept files with styles.xml filename
-                                // as we are only processing styles
-                                return name.equalsIgnoreCase("styles.xml");
-                            }
-                        });
-
-                if(styleFiles != null && styleFiles.length > 0) {
-                    cout("    - Processing styles...");
-                    // We need input (CMTE) and output (layers)
-                    inFactory = DocumentBuilderFactory.newInstance();
-                    outFactory = DocumentBuilderFactory.newInstance();
-                    inBuilder = inFactory.newDocumentBuilder();
-                    outBuilder = outFactory.newDocumentBuilder();
-
-                    cout("     - Resolving colors and dimensions...");
-                    // Only one styles.xml can be available, so use stylesFiles
-                    // to get the file.
-                    try {
-                        inDocument = inBuilder.parse(styleFiles[0]);
-                    } catch (Exception ex) {
-                        cout("Failed to parse XML for styles in overlay " + file.getName());
-                        cout(StackTraceParser.parse(ex));
-                        return false;
+                for (File valuesFolder : new File(file, "res/").listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String name) {
+                        return name.startsWith("values");
                     }
-                    outDocument = outBuilder.parse(getOutXmlSkeleton());
-                    Element inRoot = inDocument.getDocumentElement();
-                    Element outRoot = outDocument.getDocumentElement();
-                    NodeList styleNodes = inRoot.getElementsByTagName("style");
-                    for (int i = 0; i < styleNodes.getLength(); i++) {
-                        final NodeList inInStyleNodesTmp = styleNodes.item(i).getChildNodes();
-                        NodeList inInStyleNodes = new NodeList() {
-                            private ArrayList<Node> nodes = new ArrayList<>();
-
-                            public Node addAllNonEmptyNodes(NodeList list) {
-                                for (int x = 0; x < list.getLength(); x++) {
-                                    Node node = list.item(x);
-                                    if (node != null && node.getAttributes() != null &&
-                                            node.getAttributes().getLength() > 0 &&
-                                            node.getTextContent() != null &&
-                                            node.getAttributes().getNamedItem("name") != null)
-                                        nodes.add(node);
+                })) {
+                    cout("  Found values folder " + valuesFolder.getName());
+                    for ( File f : (new File(file, "res/" + valuesFolder.getName())).listFiles(
+                            new FilenameFilter() {
+                                @Override
+                                public boolean accept(File dir, String name) {
+                                    // Only accept files with styles.xml filename
+                                    // as we are only processing styles
+                                    return name.equalsIgnoreCase("styles.xml");
                                 }
-                                return null;
-                            }
+                            }))
+                        styleFiles.add(f);
+                }
 
-                            @Override
-                            public Node item(int index) {
-                                return (index == -1 ? addAllNonEmptyNodes(inInStyleNodesTmp)
-                                        : nodes.get(index));
-                            }
+                if(styleFiles.size() > 0) {
+                    for(File styleFile : styleFiles) {
+                        cout("    - Processing styles...");
+                        String valuesFolder = styleFile.getParent();
+                        valuesFolder = valuesFolder.substring(
+                                valuesFolder.lastIndexOf("/") + 1, valuesFolder.length());
 
-                            @Override
-                            public int getLength() {
-                                return nodes.size();
-                            }
-                        };
+                        // We need input (CMTE) and output (layers)
+                        inFactory = DocumentBuilderFactory.newInstance();
+                        outFactory = DocumentBuilderFactory.newInstance();
+                        inBuilder = inFactory.newDocumentBuilder();
+                        outBuilder = outFactory.newDocumentBuilder();
 
-                        inInStyleNodes.item(-1);
-
-                        Element[] newStyleNodes = new Element[inInStyleNodes.getLength()];
-                        String styleName, styleParent = "";
-                        boolean hasStyleParent = styleNodes.item(i).getAttributes().getLength() > 1;
-                        styleName = styleNodes.item(i).getAttributes().getNamedItem("name")
-                                .getNodeValue();
-                        if (hasStyleParent) styleParent = styleNodes.item(i).getAttributes()
-                                .getNamedItem("parent").getNodeValue();
-                        for (int ix = 0; ix < inInStyleNodes.getLength(); ix++) {
-                            String inValue, outValue, nameAttrValue;
-                            NamedNodeMap attrs = inInStyleNodes.item(ix).getAttributes();
-                            Node nameAttr = (attrs == null ? null : attrs.getNamedItem("name"));
-                            nameAttrValue = (nameAttr == null ? "" : nameAttr.getNodeValue());
-                            if (!(inInStyleNodes.item(ix).getTextContent().contains("color/") ||
-                                    inInStyleNodes.item(ix).getTextContent().startsWith("#"))) {
-                                outValue = inInStyleNodes.item(ix).getTextContent();
-                            } else {
-                                inValue = inInStyleNodes.item(ix).getTextContent();
-                                outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
-                            }
-                            if(inInStyleNodes.item(ix).getTextContent().contains("dimen/")) {
-                                inValue = inInStyleNodes.item(ix).getTextContent();
-                                outValue = resolveDimen(inValue, dimensValues, dimensKeys);
-                            }
-                            Element newInsideStyleNode = outDocument.createElement("item");
-                            newInsideStyleNode.setAttribute("name", nameAttrValue);
-                            newInsideStyleNode.setTextContent(outValue);
-                            newStyleNodes[ix] = newInsideStyleNode;
+                        cout("     - Resolving colors and dimensions...");
+                        // Only one styles.xml can be available, so use stylesFiles
+                        // to get the file.
+                        try {
+                            inDocument = inBuilder.parse(styleFile);
+                        } catch (Exception ex) {
+                            cout("Failed to parse XML for styles in overlay " + file.getName());
+                            cout(StackTraceParser.parse(ex));
+                            return false;
                         }
-                        Element newStyleElement = outDocument.createElement("style");
-                        if (styleName.length() > 0) newStyleElement.setAttribute("name", styleName);
-                        if (hasStyleParent) newStyleElement.setAttribute("parent", styleParent);
-                        for (int ix = 0; ix < newStyleNodes.length; ix++) {
-                            Element element = newStyleNodes[ix];
-                            if (element == null)
-                                cout("      Warning: element " + ix + " is null in style " + styleName);
-                            else newStyleElement.appendChild(element);
+                        outDocument = outBuilder.parse(getOutXmlSkeleton());
+                        Element inRoot = inDocument.getDocumentElement();
+                        Element outRoot = outDocument.getDocumentElement();
+                        NodeList styleNodes = inRoot.getElementsByTagName("style");
+                        for (int i = 0; i < styleNodes.getLength(); i++) {
+                            final NodeList inInStyleNodesTmp = styleNodes.item(i).getChildNodes();
+                            NodeList inInStyleNodes = new NodeList() {
+                                private ArrayList<Node> nodes = new ArrayList<>();
+
+                                public Node addAllNonEmptyNodes(NodeList list) {
+                                    for (int x = 0; x < list.getLength(); x++) {
+                                        Node node = list.item(x);
+                                        if (node != null && node.getAttributes() != null &&
+                                                node.getAttributes().getLength() > 0 &&
+                                                node.getTextContent() != null &&
+                                                node.getAttributes().getNamedItem("name") != null)
+                                            nodes.add(node);
+                                    }
+                                    return null;
+                                }
+
+                                @Override
+                                public Node item(int index) {
+                                    return (index == -1 ? addAllNonEmptyNodes(inInStyleNodesTmp)
+                                            : nodes.get(index));
+                                }
+
+                                @Override
+                                public int getLength() {
+                                    return nodes.size();
+                                }
+                            };
+
+                            inInStyleNodes.item(-1);
+
+                            Element[] newStyleNodes = new Element[inInStyleNodes.getLength()];
+                            String styleName, styleParent = "";
+                            boolean hasStyleParent = styleNodes.item(i).getAttributes().getLength() > 1;
+                            styleName = styleNodes.item(i).getAttributes().getNamedItem("name")
+                                    .getNodeValue();
+                            if (hasStyleParent) styleParent = styleNodes.item(i).getAttributes()
+                                    .getNamedItem("parent").getNodeValue();
+                            for (int ix = 0; ix < inInStyleNodes.getLength(); ix++) {
+                                String inValue, outValue, nameAttrValue;
+                                NamedNodeMap attrs = inInStyleNodes.item(ix).getAttributes();
+                                Node nameAttr = (attrs == null ? null : attrs.getNamedItem("name"));
+                                nameAttrValue = (nameAttr == null ? "" : nameAttr.getNodeValue());
+                                if (!(inInStyleNodes.item(ix).getTextContent().contains("color/") ||
+                                        inInStyleNodes.item(ix).getTextContent().startsWith("#"))) {
+                                    outValue = inInStyleNodes.item(ix).getTextContent();
+                                } else {
+                                    inValue = inInStyleNodes.item(ix).getTextContent();
+                                    outValue = resolveColor(inValue, commonColorValues, commonColorKeys);
+                                }
+                                if (inInStyleNodes.item(ix).getTextContent().contains("dimen/")) {
+                                    inValue = inInStyleNodes.item(ix).getTextContent();
+                                    outValue = resolveDimen(inValue, dimensValues, dimensKeys);
+                                }
+                                Element newInsideStyleNode = outDocument.createElement("item");
+                                newInsideStyleNode.setAttribute("name", nameAttrValue);
+                                newInsideStyleNode.setTextContent(outValue);
+                                newStyleNodes[ix] = newInsideStyleNode;
+                            }
+                            Element newStyleElement = outDocument.createElement("style");
+                            if (styleName.length() > 0)
+                                newStyleElement.setAttribute("name", styleName);
+                            if (hasStyleParent) newStyleElement.setAttribute("parent", styleParent);
+                            for (int ix = 0; ix < newStyleNodes.length; ix++) {
+                                Element element = newStyleNodes[ix];
+                                if (element == null)
+                                    cout("      Warning: element " + ix + " is null in style " + styleName);
+                                else newStyleElement.appendChild(element);
+                            }
+                            outDocument.getDocumentElement().appendChild(newStyleElement);
                         }
-                        outDocument.getDocumentElement().appendChild(newStyleElement);
+
+                        cout("     - Writing new style file...");
+                        // Now save the new file
+                        File resultFile = new File(resultDirF, "assets/overlays/" +
+                                file.getName() + "/res/" + valuesFolder + "/styles.xml");
+                        if (!resultFile.getParentFile().mkdirs())
+                            DroidThemeTransformer.dontCare();
+                        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                        Transformer transformer = transformerFactory.newTransformer();
+                        DOMSource source = new DOMSource(outDocument);
+                        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
+                                "4");
+                        StreamResult result =
+                                new StreamResult(resultFile);
+                        transformer.transform(source, result);
                     }
-
-                    cout("     - Writing new style file...");
-                    // Now save the new file
-                    File resultFile = new File(resultDirF, "assets/overlays/" +
-                            file.getName() + "/res/values/styles.xml");
-                    if (!resultFile.getParentFile().mkdirs())
-                        DroidThemeTransformer.dontCare();
-                    TransformerFactory transformerFactory = TransformerFactory.newInstance();
-                    Transformer transformer = transformerFactory.newTransformer();
-                    DOMSource source = new DOMSource(outDocument);
-                    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-                    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount",
-                            "4");
-                    StreamResult result =
-                            new StreamResult(resultFile);
-                    transformer.transform(source, result);
                 }
 
                 File[] drawableFiles = (new File(file, "res/drawable/")).listFiles(
