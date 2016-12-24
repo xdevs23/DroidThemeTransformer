@@ -700,6 +700,7 @@ public class CmToOmsTransformer {
                                         copyFile.delete()) DroidThemeTransformer.dontCare();
                                 if(!copyFile.getParentFile().mkdirs())
                                     DroidThemeTransformer.dontCare();
+                                cout("  Copying " + resFile + " to " + copyFile);
                                 FileUtils.copy(resFile, copyFile);
                             }
                     }
