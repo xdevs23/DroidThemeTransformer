@@ -1,2 +1,2 @@
 # DroidThemeTransformer
-Useful program to magically transform themes
+Useful program for magically transforming themes
